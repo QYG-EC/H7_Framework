@@ -230,7 +230,7 @@ bool Chassis_Init(void)
 
 /**
  * @brief 1 kHz 读取新鲜命令、计算舵轮目标、提交组输出并更新反馈。
- * @note 命令超过 100 ms 时默认 ZERO_FORCE；设备反馈超时由 DJI 驱动逐电机处理。
+ * @note 命令超过 100 ms 时默认 ZERO_FORCE；任一电机掉线时撤销八台电机的使能请求。
  *       此处不仲裁输入、不解析 CAN、不新增模式控制器；反馈按十个周期分频发布。
  */
 void Chassis_Update(void)
@@ -243,15 +243,22 @@ void Chassis_Update(void)
 
     if (ctx.initialized) // 初始化失败时不访问正常组控制流程，反馈仍按周期发布。
     {
+        bool all_online = true;
+        bool all_ready = true;
         for (uint8_t index = 0U; index < 4U; ++index)
         {
             ctx.wheel_snapshot[index] = ctx.wheel_motor[index].GetMotionSnapshot();
             ctx.steer_snapshot[index] = ctx.steer_motor[index].GetMotionSnapshot();
+            all_online = all_online && ctx.wheel_snapshot[index].online &&
+                         ctx.steer_snapshot[index].online;
+            all_ready = all_ready && ctx.wheel_snapshot[index].ready &&
+                        ctx.steer_snapshot[index].ready;
         }
-        const bool enabled = ctx.command.mode != ChassisMode::ZERO_FORCE;
+        const bool enabled = ctx.command.mode != ChassisMode::ZERO_FORCE && all_online;
+        // 任一模块掉线时由组失能清零全部输出；恢复请求不能以 ready 为前提。
         (void) ctx.wheel_group.RequestEnabled(enabled);
         (void) ctx.steer_group.RequestEnabled(enabled);
-        if (enabled) // 非 ZERO_FORCE 才计算运动目标；实际反馈超时保护由驱动逐电机执行。
+        if (enabled && all_ready) // 全部就绪后才按本周期命令与反馈重新计算目标。
         {
             float wheel_target_rad_s[4];
             float steer_target_rad[4];

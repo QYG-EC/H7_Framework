@@ -87,10 +87,15 @@ CMake 仅在 `H7_APP_CHASSIS=ON` 时加入 Chassis.cpp；关闭时不编译、�
 
 设备在线由 DJI 快照读取 Daemon 即时状态，Control/Send 不等待低频检查即可清零离线电机。
 StatusTask 的 DJI ServiceAll 还会独立覆盖安全帧并清积分，即使 App 不再调用 Control/Send。
-当前应用没有“一个模块掉线则八台电机全部停机”的聚合策略；其他在线电机可能继续控制。
-若要增加全车许可、恢复状态机或集中 PrepareControl，应单独设计行为并验证，不把文档示例当作现有行为。
+Application 每周期聚合八台电机的在线状态：任一行走或舵向电机离线，立即对两个发送组
+请求失能，由驱动清零八台电机的协议输出并清积分。联动保护在 Chassis_Update 观察到离线时生效，
+不替代驱动逐电机保护，也不改变现有掉线判定时限；ControlTask 停止调度时不保证联动执行。
+零电流请求不等于机械制动或车体立即停止，实际送达还取决于 CAN 链路。
 
-本应用没有云台那样的恢复捕获流程：命令仍新鲜时，恢复后的电机继续使用当前目标。
+恢复采用自动恢复策略，不锁存故障、不要求额外人工授权：全部反馈在线且当前命令新鲜、
+非 ZERO_FORCE 时，先请求使能；随后周期确认八台快照全部 ready，才根据当前命令和反馈重新
+计算运动目标。不能用 ready 作为请求使能的前提，因为 DJI 的 ready 本身包含使能请求。
+命令过期或 ZERO_FORCE 时保持全组失能。本应用没有机械寻零或云台那样的恢复捕获流程。
 初始化失败后不进入组控制；已成功注册的电机保持驱动默认禁止输出，初始化不可反复调用。
 组 Control 的返回值当前未处理；它表示软件提交与设备就绪结果，不能等同于 CAN 已发送或机械已执行。
 
@@ -372,15 +377,22 @@ void Chassis_Update(void)
 
     if (ctx.initialized) // 初始化失败时不访问正常组控制流程，反馈仍按周期发布。
     {
+        bool all_online = true;
+        bool all_ready = true;
         for (uint8_t index = 0U; index < 4U; ++index)
         {
             ctx.wheel_snapshot[index] = ctx.wheel_motor[index].GetMotionSnapshot();
             ctx.steer_snapshot[index] = ctx.steer_motor[index].GetMotionSnapshot();
+            all_online = all_online && ctx.wheel_snapshot[index].online &&
+                         ctx.steer_snapshot[index].online;
+            all_ready = all_ready && ctx.wheel_snapshot[index].ready &&
+                        ctx.steer_snapshot[index].ready;
         }
-        const bool enabled = ctx.command.mode != ChassisMode::ZERO_FORCE;
+        const bool enabled = ctx.command.mode != ChassisMode::ZERO_FORCE && all_online;
+        // 任一模块掉线时由组失能清零全部输出；恢复请求不能以 ready 为前提。
         (void) ctx.wheel_group.RequestEnabled(enabled);
         (void) ctx.steer_group.RequestEnabled(enabled);
-        if (enabled) // 非 ZERO_FORCE 才计算运动目标；实际反馈超时保护由驱动逐电机执行。
+        if (enabled && all_ready) // 全部就绪后才按本周期命令与反馈重新计算目标。
         {
             float wheel_target_rad_s[4];
             float steer_target_rad[4];
@@ -735,7 +747,7 @@ void Chassis_Update(void)
 2. 核对轮索引、传动比、轮半径和几何半长/半宽，确认反馈单位为输出轴 rad/rad/s。
 3. 建立舵向绝对零位或明确的上电姿态，再设置偏置；配置偏置不等于完成寻零。
 4. 单独核对行走轮正向和舵角正向，再验证直行、横移、旋转及 ±π/2 最短转向切换。
-5. 验证命令过期、ZERO_FORCE、单电机掉线、恢复及反馈标志，确认当前逐电机保护是否满足整车要求。
+5. 验证命令过期、ZERO_FORCE、八台电机逐一掉线时的全组失能、反馈不齐时禁止运动，以及全部反馈恢复后的重新使能与反馈标志；实机检查零电流帧送达及车体惯性停止距离。
 
 ChassisBoard 构建：
 
