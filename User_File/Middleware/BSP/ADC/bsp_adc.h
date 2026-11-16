@@ -34,6 +34,8 @@ struct Struct_ADC_Manage_Object
 {
     ADC_HandleTypeDef *ADC_Handler;
     uint16_t ADC_Data[ADC_BUFFER_SIZE];
+    volatile bool Sample_Valid;
+    volatile uint64_t Sample_Timestamp; // us，读取时须保护 64 位快照。
 };
 
 /* Exported variables --------------------------------------------------------*/
@@ -50,6 +52,8 @@ extern struct Struct_ADC_Manage_Object ADC3_Manage_Object;
  * @return 参数、校准、DMA 启动任一失败时返回 false；调用方可据此降级启动。
  */
 bool ADC_Init(ADC_HandleTypeDef *hadc, uint16_t Sample_Number);
+// 板载 ADC1 单通道采样的 10 ms 任务服务。
+void ADC_TIM_10ms_PeriodElapsedCallback(void);
 
 #endif
 
