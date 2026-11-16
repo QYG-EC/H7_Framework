@@ -203,3 +203,27 @@ UART、OSPI 等 DMA 管理对象放入 `.dma_buffer`。修改链接脚本、MPU 
 - [Application](../../Application/README.md)
 - [Message Center](../../System/MessageCenter/README.md)
 - [交互式架构图](../../../Assets/Architecture/H7_BSP.html)
+
+## 上游可靠性修复的运行约定
+
+本地选择性移植上游 H7_BSP `ebfb320`、`db0c69d`、`6e7c44c`、`1aa5d25`、
+`179c779`、`6ff9d2d` 的修复，保留本地板型调度、CAN 分路队列和设备使能语义。
+
+- UART 恢复在开始时于短临界区消费 `Rx_Restart_Pending`；恢复期间再次收到错误，
+  新请求保留到下一轮服务。恢复失败仍保持待恢复状态。
+- TIM5 时间戳读取与更新中断均保护溢出计数/硬件标志的一致性，恢复调用前的 PRIMASK。
+  继续采用 1 MHz 计数、3600 s 溢出周期，避免 HAL 清标志后被中断读取到旧的软件计数。
+- `ADC_TIM_10ms_PeriodElapsedCallback()` 由现有 1 ms 调度表每 10 ms 调用，
+  针对板载 ADC1 单通道、软件触发、循环 DMA 配置更新电源采样并尝试错误恢复。
+  `Sample_Valid` 和 `Sample_Timestamp` 标记最新完成采样；电压读取在临界区获取一致快照，
+  初始化未完成、ADC 错误或样本超过 100 ms 时返回 0 V。
+  BMI088 加热在电压无效或低于 10 V 时输出零并清除温控积分；正常时沿用原温控计算。
+- W25Q64JV 的 RX/TX 完成 ISR 仅登记 `Auto_Polling_Pending`，现有 1 ms 服务负责续接。
+  OSPI 命令及句柄等待超时限制为 1 ms；传输失败或忙超时清除待续接状态并累计错误。
+  软件提交成功仍不等于 Flash 已完成操作。
+- `BSP_CAN_Recover()` 仅由 CAN 发送任务调用，各路独立维护至少 100 ms 的恢复尝试间隔。
+  仅 Bus-Off 且 INIT 置位时清除 INIT 以请求硬件恢复；单独 INIT 不触发恢复。
+  Bus-Off 或 INIT 未解除期间不向该路硬件提交报文，软件 FIFO/周期目标继续遵循原有语义，
+  其他总线照常发送。该服务不清除设备掉线保护，也不主动重新使能电机。
+
+主机故障注入与验证边界见 [可靠性回归](../../../Tests/Reliability/README.md)。
