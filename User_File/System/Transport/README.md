@@ -18,6 +18,8 @@ cmake --preset ChassisBoard && cmake --build --preset ChassisBoard
 `.ioc` 不再声明默认 FreeRTOS 任务；任务属性和句柄放在用户文件
 `board_tasks_common.c`，各目标任务列表放在各自的 `board_tasks_*.c`。
 `freertos.c` 仅在 USER CODE 区调用 `Board_CreateTasks()`，可随 CubeMX 重新生成。
+各板型检查自身全部必要任务的创建结果；任一 `osThreadNew()` 返回空句柄时进入
+`Error_Handler()`，未列入该板型的任务不参与检查。
 板型预设保存在独立的 `CMakeUserPresets.json`，避免生成器重写 `CMakePresets.json` 时丢失。
 
 | 固件 | 本地应用 | 电机 CAN | 板间 CAN |

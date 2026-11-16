@@ -1,4 +1,5 @@
 #include "board_tasks.h"
+#include "main.h"
 
 void Board_CreateTasks(void)
 {
@@ -10,4 +11,15 @@ void Board_CreateTasks(void)
     BMI088TaskHandle = osThreadNew(BMI088_Task, NULL, &BMI088Task_attributes);
     ControlTaskHandle = osThreadNew(Control_Task, NULL, &ControlTask_attributes);
     StorageTaskHandle = osThreadNew(Storage_Task, NULL, &StorageTask_attributes);
+    if (TransportTaskHandle == NULL ||
+        InsTaskHandle == NULL ||
+        CanTxTaskHandle == NULL ||
+        StatusTaskHandle == NULL ||
+        TIM_1ms_TaskHandle == NULL ||
+        BMI088TaskHandle == NULL ||
+        ControlTaskHandle == NULL ||
+        StorageTaskHandle == NULL)
+    {
+        Error_Handler();
+    }
 }
