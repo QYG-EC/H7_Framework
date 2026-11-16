@@ -5,9 +5,14 @@
 extern "C"
 {
 #endif
+    typedef struct { uint32_t PSR, CCCR; } FDCAN_GlobalTypeDef;
+#define FDCAN_PSR_BO 0x80U
+#define FDCAN_CCCR_INIT 1U
+#define CLEAR_BIT(REG, BIT) ((REG) &= ~(BIT))
     typedef struct
     {
         unsigned bus;
+        FDCAN_GlobalTypeDef *Instance;
     } FDCAN_HandleTypeDef;
     extern FDCAN_HandleTypeDef hfdcan1, hfdcan2, hfdcan3;
     typedef enum

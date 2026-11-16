@@ -11,7 +11,8 @@
 #include <deque>
 #include <vector>
 
-FDCAN_HandleTypeDef hfdcan1{0}, hfdcan2{1}, hfdcan3{2};
+static FDCAN_GlobalTypeDef registers[3]{};
+FDCAN_HandleTypeDef hfdcan1{0, &registers[0]}, hfdcan2{1, &registers[1]}, hfdcan3{2, &registers[2]};
 static FDCAN_HandleTypeDef* buses[] = {&hfdcan1, &hfdcan2, &hfdcan3};
 static uint32_t primask;
 static uint64_t now_us;
@@ -450,6 +451,43 @@ static void EL05(unsigned mask)
     assert(!motor.GetSnapshot().ready && !motor.RequestEnabled(true));
 }
 
+static void Recovery()
+{
+    registers[0] = {FDCAN_PSR_BO, FDCAN_CCCR_INIT};
+    for (auto* bus : buses)
+    {
+        Struct_CAN_Tx_Msg msg{};
+        msg.hfdcan = bus;
+        msg.id = 0x123;
+        msg.len = 8;
+        assert(CAN_Tx_Submit(&msg));
+    }
+    BSP_CAN_SendAsync();
+    assert(sent[0].empty() && sent[1].size() == 1 && sent[2].size() == 1);
+    now_us = 99999;
+    BSP_CAN_Recover();
+    assert(registers[0].CCCR == FDCAN_CCCR_INIT);
+    now_us = 100000;
+    BSP_CAN_Recover();
+    assert(registers[0].CCCR == 0);
+    BSP_CAN_SendAsync();
+    assert(sent[0].empty()); // 硬件尚未结束 Bus-Off 恢复。
+    registers[0].PSR = 0;
+    BSP_CAN_SendAsync();
+    assert(sent[0].size() == 1);
+    registers[0] = {FDCAN_PSR_BO, FDCAN_CCCR_INIT};
+    registers[1] = {FDCAN_PSR_BO, FDCAN_CCCR_INIT};
+    now_us = 150000;
+    BSP_CAN_Recover();
+    assert(registers[0].CCCR == FDCAN_CCCR_INIT && registers[1].CCCR == 0);
+    now_us = 200000;
+    BSP_CAN_Recover();
+    assert(registers[0].CCCR == 0);
+    registers[2].CCCR = FDCAN_CCCR_INIT; // 主动停止，不应被恢复服务启动。
+    BSP_CAN_Recover();
+    assert(registers[2].CCCR == FDCAN_CCCR_INIT);
+}
+
 int main(int argc, char** argv)
 {
     assert(argc == 3);
@@ -461,6 +499,8 @@ int main(int argc, char** argv)
         Motor(mask);
     else if (std::strcmp(argv[2], "race") == 0)
         Race();
+    else if (std::strcmp(argv[2], "recovery") == 0)
+        Recovery();
     else if (std::strcmp(argv[2], "el05") == 0)
         EL05(mask);
     else

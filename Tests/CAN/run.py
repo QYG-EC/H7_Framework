@@ -26,5 +26,5 @@ for mask in (0, 1, 2, 4, 7):
                     str(root / "User_File/Middleware/BSP/CAN/bsp_can.c"), "-o", str(obj)], check=True)
     binary = out / f"can_test_{mask}"
     subprocess.run(["c++", *flags, *objects, str(obj), "-o", str(binary)], check=True)
-    for scenario in ("routing", "motor", "capacity", "race", "el05"):
+    for scenario in ("routing", "motor", "capacity", "race", "el05", "recovery"):
         subprocess.run([str(binary), str(mask), scenario], check=True)

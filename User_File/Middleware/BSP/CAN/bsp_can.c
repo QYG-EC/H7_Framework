@@ -13,6 +13,7 @@
 
 #include "bsp_can.h"
 #include "cmsis_os2.h"
+#include "sys_timestamp.h"
 #include "FreeRTOS.h"
 
 #include <string.h>
@@ -86,6 +87,7 @@ static uint32_t Can_TxQueueStorage[CAN_BUS_COUNT][CAN_TX_QUEUE_WORDS];
 static Struct_CAN_Tx_Msg Can_TxPendingMessage[CAN_BUS_COUNT];
 static uint8_t Can_TxPending[CAN_BUS_COUNT];
 static Struct_CAN_Tx_Stats Can_TxStats;
+static uint64_t Can_LastRecovery[CAN_BUS_COUNT];
 
 static void BSP_CAN_SaturatingIncrement(uint32_t *counter)
 {
@@ -537,6 +539,11 @@ static bool BSP_CAN_SendMsg(const Struct_CAN_Tx_Msg *message)
     {
         return false;
     }
+    if ((message->hfdcan->Instance->PSR & FDCAN_PSR_BO) != 0U ||
+        (message->hfdcan->Instance->CCCR & FDCAN_CCCR_INIT) != 0U)
+    {
+        return false;
+    }
     if (HAL_FDCAN_GetTxFifoFreeLevel(message->hfdcan) == 0)
     {
         BSP_CAN_SaturatingIncrement(&Can_TxStats.hardware_fifo_full_count);
@@ -561,6 +568,22 @@ static bool BSP_CAN_SendMsg(const Struct_CAN_Tx_Msg *message)
         return false;
     }
     return true;
+}
+
+void BSP_CAN_Recover(void)
+{
+    FDCAN_HandleTypeDef *buses[CAN_BUS_COUNT] = {&hfdcan1, &hfdcan2, &hfdcan3};
+    const uint64_t now = SYS_Timestamp_Get_Microsecond();
+    for (uint8_t index = 0U; index < CAN_BUS_COUNT; ++index)
+    {
+        if ((buses[index]->Instance->PSR & FDCAN_PSR_BO) != 0U &&
+            (buses[index]->Instance->CCCR & FDCAN_CCCR_INIT) != 0U &&
+            now - Can_LastRecovery[index] >= 100000U)
+        {
+            Can_LastRecovery[index] = now;
+            CLEAR_BIT(buses[index]->Instance->CCCR, FDCAN_CCCR_INIT);
+        }
+    }
 }
 
 void BSP_CAN_GetTxStats(Struct_CAN_Tx_Stats *stats)

@@ -78,6 +78,9 @@ typedef struct
  */
 void BSP_CAN_ConfigInit(void);
 
+/* 由 CAN 发送任务调用；每路 Bus-Off 恢复尝试间隔至少 100 ms，不改变设备使能。 */
+void BSP_CAN_Recover(void);
+
 /**
  * @brief 注册一个接收回调。
  * @param can_id 要监听的标准帧 ID。
