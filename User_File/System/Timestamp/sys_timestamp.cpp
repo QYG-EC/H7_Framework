@@ -57,34 +57,18 @@ void Class_Timestamp::TIM_3600s_PeriodElapsedCallback()
  */
 uint64_t Class_Timestamp::Calculate_Timestamp() const
 {
-    for (;;)
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+    uint32_t overflow = TIM_Overflow_Count;
+    uint32_t counter = TIM_Handler->Instance->CNT;
+    if (__HAL_TIM_GET_FLAG(TIM_Handler, TIM_FLAG_UPDATE) != RESET)
     {
-        // 前后两次读取溢出次数，排除 CNT 读取期间更新中断已经执行的情况。
-        const uint32_t overflow_before = TIM_Overflow_Count;
-        const uint32_t counter = TIM_Handler->Instance->CNT;
-        __DMB();
-        const uint32_t overflow_after = TIM_Overflow_Count;
-        if (overflow_before != overflow_after)
-        {
-            continue;
-        }
-
-        // 硬件已回绕但 ISR 尚未更新软件计数时，临时补算一次周期而不修改共享状态。
-        if (__HAL_TIM_GET_FLAG(TIM_Handler, TIM_FLAG_UPDATE) != RESET)
-        {
-            const uint32_t pending_counter = TIM_Handler->Instance->CNT;
-            __DMB();
-            if (overflow_before != TIM_Overflow_Count)
-            {
-                continue;
-            }
-            return (static_cast<uint64_t>(overflow_before) + 1ULL) * TIM_PERIOD_US +
-                   static_cast<uint64_t>(pending_counter);
-        }
-
-        return static_cast<uint64_t>(overflow_before) * TIM_PERIOD_US +
-               static_cast<uint64_t>(counter);
+        counter = TIM_Handler->Instance->CNT;
+        overflow++;
     }
+    __DMB();
+    __set_PRIMASK(primask);
+    return (uint64_t)overflow * TIM_PERIOD_US + counter;
 }
 
 /**
