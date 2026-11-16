@@ -165,6 +165,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/User_File/Device/Peripheral/Motor/DJImotor/dji_motor.cpp
         ${CMAKE_CURRENT_LIST_DIR}/User_File/Device/Peripheral/Motor/LKmotor/lk_motor.cpp
         ${CMAKE_CURRENT_LIST_DIR}/User_File/Device/Peripheral/Motor/VESCmotor/vesc_motor.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/User_File/Device/Peripheral/Motor/EL05motor/el05_motor.cpp
         ${CMAKE_CURRENT_LIST_DIR}/User_File/Middleware/Algorithm/Pulse/alg_pulse.cpp
         ${CMAKE_CURRENT_LIST_DIR}/User_File/Middleware/Algorithm/CRC/crc8.c
         ${CMAKE_CURRENT_LIST_DIR}/User_File/Middleware/Algorithm/CRC/crc16.c
@@ -315,6 +316,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
         User_File/Device/Peripheral/Motor/DJImotor
         User_File/Device/Peripheral/Motor/LKmotor
         User_File/Device/Peripheral/Motor/VESCmotor
+        User_File/Device/Peripheral/Motor/EL05motor
         User_File/Middleware/Algorithm/Pulse/
         User_File/Middleware/Algorithm/CRC/
         User_File/Device/Peripheral/Remote/

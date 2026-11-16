@@ -1,3 +1,4 @@
+#include "el05_motor.h"
 #include "cmsis_os2.h"
 #include "vesc_motor.h"
 
@@ -422,6 +423,33 @@ static void Capacity(unsigned mask)
     assert(stats.submit_queue_full_count == 1 && stats.periodic_slot_full_count == 1);
 }
 
+static void EL05(unsigned mask)
+{
+    static Class_EL05Motor motor;
+    auto* bus = buses[0];
+    assert(motor.Init(bus, 1, 0xFD) == bool(mask & 1));
+    if (!(mask & 1)) return;
+    assert(motor.RequestEnabled(true));
+    Class_EL05Motor::ServiceAll();
+    assert(motor.GetSnapshot().requested_enabled && !motor.GetSnapshot().ready);
+    assert(BSP_CAN_SendPer());
+    assert(sent[0].back().header.Identifier == 0x0300FD01U);
+    Inject(buses[1], 0x028001FDU, FDCAN_EXTENDED_ID, {0, 0, 0, 0, 0, 0, 1, 44});
+    assert(!motor.GetSnapshot().ready);
+    Inject(bus, 0x028001FDU, FDCAN_EXTENDED_ID, {0, 0, 0, 0, 0, 0, 1, 44});
+    assert(motor.GetSnapshot().ready && motor.GetSnapshot().temperature_c == 30.0f);
+    assert(motor.SetMotion(12.57f, -50.0f, 500.0f, 0.0f, 6.0f));
+    assert(BSP_CAN_SendPer());
+    assert(sent[0].back().header.Identifier == 0x01FFFF01U);
+    assert(Bits(sent[0].back()) == 0xFFFF0000U);
+    assert(motor.SetMotion(0, 0, 0, 0, 0));
+    now_us += 101000;
+    Class_EL05Motor::ServiceAll();
+    assert(BSP_CAN_SendPer());
+    assert(sent[0].back().header.Identifier == 0x0400FD01U);
+    assert(!motor.GetSnapshot().ready && !motor.RequestEnabled(true));
+}
+
 int main(int argc, char** argv)
 {
     assert(argc == 3);
@@ -433,6 +461,8 @@ int main(int argc, char** argv)
         Motor(mask);
     else if (std::strcmp(argv[2], "race") == 0)
         Race();
+    else if (std::strcmp(argv[2], "el05") == 0)
+        EL05(mask);
     else
         Capacity(mask);
     std::printf("PASS mask=%u %s\n", mask, argv[2]);

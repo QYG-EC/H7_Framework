@@ -101,6 +101,11 @@ bool BSP_CAN_RegisterCallbackEx(uint32_t can_id, Enum_CAN_Id_Type id_type,
                                 FDCAN_HandleTypeDef *hfdcan,
                                 CAN_RxCallback_t callback, void *context);
 
+/** 注册静态掩码回调。ID 未掩码位须为 0；拒绝同总线同帧型的重叠匹配。 */
+bool BSP_CAN_RegisterMaskedCallback(uint32_t can_id, uint32_t mask, Enum_CAN_Id_Type id_type,
+                                    FDCAN_HandleTypeDef *hfdcan,
+                                    CAN_RxCallback_t callback, void *context);
+
 /** 初始化失败回滚使用，只移除键和 context 均匹配的注册项。 */
 void BSP_CAN_UnregisterCallbackEx(uint32_t can_id, Enum_CAN_Id_Type id_type,
                                   FDCAN_HandleTypeDef *hfdcan, void *context);

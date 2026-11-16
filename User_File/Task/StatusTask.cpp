@@ -11,6 +11,7 @@
 #include "dji_motor.h"
 #include "lk_motor.h"
 #include "vesc_motor.h"
+#include "el05_motor.h"
 #if H7_HAS_DM_MOTOR
 #include "dmmotor.h"
 #endif
@@ -35,6 +36,7 @@ extern "C" void Status_Task(void *argument)
         Class_DJIMotor::ServiceAll();
         Class_LKMotor::ServiceAll();
         Class_VESCMotor::ServiceAll();
+        Class_EL05Motor::ServiceAll();
 #if H7_HAS_DM_MOTOR
         Class_DMMotor::ServiceAll();
 #endif

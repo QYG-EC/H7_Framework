@@ -98,6 +98,7 @@ CAN 接收回调在中断上下文执行。UART 的 DMA 接收须同时具备 Cu
 | 瓴控 LK | MF/MH/MG 同协议型号；单机电流/原生速度/增量位置、广播电流指令；减速比与编码器参数须按型号配置 | [LK 电机驱动](User_File/Device/Peripheral/Motor/LKmotor/lk_motor.md) |
 | 达妙 | MIT、位置-速度、速度、力位混控接口；实际模式取决于型号与固件 | [达妙电机驱动](User_File/Device/Peripheral/Motor/DMmotor/dmmotor.md) |
 | VESC | 九种基本单帧控制、状态反馈和掉线安全输出；未绑定机构 | [VESC 驱动](User_File/Device/Peripheral/Motor/VESCmotor/README.md) |
+| 灵足时代 EL05 | 私有 CAN 运控、状态反馈与掉线保护 | [EL05 驱动](User_File/Device/Peripheral/Motor/EL05motor/README.md) |
 
 电机型号、CAN ID、反馈源、方向、映射范围和控制参数由使用方配置；应用层负责控制周期、目标生成与输出边界。
 

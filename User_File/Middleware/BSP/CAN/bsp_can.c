@@ -50,6 +50,7 @@ typedef struct
 {
     uint32_t ID;                 /*!< 要监听的 ID。 */
     Enum_CAN_Id_Type id_type;
+    uint32_t mask;
     FDCAN_HandleTypeDef *hfdcan; /*!< 要监听的 FDCAN 总线。 */
     CAN_RxCallback_t func;       /*!< 收到匹配报文时调用的函数。 */
     uint8_t is_used;             /*!< 该注册项是否已经启用。 */
@@ -280,18 +281,29 @@ bool BSP_CAN_RegisterCallbackEx(uint32_t can_id, Enum_CAN_Id_Type id_type,
                                 FDCAN_HandleTypeDef *hfdcan,
                                 CAN_RxCallback_t callback, void *context)
 {
+    return BSP_CAN_RegisterMaskedCallback(can_id,
+        id_type == CAN_ID_STANDARD ? 0x7FFU : 0x1FFFFFFFU,
+        id_type, hfdcan, callback, context);
+}
+
+bool BSP_CAN_RegisterMaskedCallback(uint32_t can_id, uint32_t mask, Enum_CAN_Id_Type id_type,
+                                    FDCAN_HandleTypeDef *hfdcan,
+                                    CAN_RxCallback_t callback, void *context)
+{
     uint32_t primask;
     uint16_t index;
     int16_t free_index = -1;
 
-    if (callback == NULL || !BSP_CAN_IdIsValid(hfdcan, can_id, id_type)) return false;
+    if (callback == NULL || !BSP_CAN_IdIsValid(hfdcan, can_id, id_type) ||
+        !BSP_CAN_IdIsValid(hfdcan, mask, id_type) || mask == 0U || (can_id & ~mask) != 0U)
+        return false;
     primask = BSP_CAN_EnterCritical();
     for (index = 0; index < MAX_CAN_CALLBACKS; index++)
     {
         if (Can_RxCallbacks[index].is_used != 0)
         {
             if (Can_RxCallbacks[index].hfdcan == hfdcan &&
-                Can_RxCallbacks[index].ID == can_id &&
+                ((Can_RxCallbacks[index].ID ^ can_id) & Can_RxCallbacks[index].mask & mask) == 0U &&
                 Can_RxCallbacks[index].id_type == id_type)
             {
                 BSP_CAN_ExitCritical(primask);
@@ -312,6 +324,7 @@ bool BSP_CAN_RegisterCallbackEx(uint32_t can_id, Enum_CAN_Id_Type id_type,
 
     index = (uint16_t)free_index;
     Can_RxCallbacks[index].ID = can_id;
+    Can_RxCallbacks[index].mask = mask;
     Can_RxCallbacks[index].id_type = id_type;
     Can_RxCallbacks[index].hfdcan = hfdcan;
     Can_RxCallbacks[index].func = callback;
@@ -332,7 +345,8 @@ void BSP_CAN_UnregisterCallbackEx(uint32_t can_id, Enum_CAN_Id_Type id_type,
     {
         CAN_CallbackEntry_t *entry = &Can_RxCallbacks[index];
         if (entry->is_used && entry->hfdcan == hfdcan && entry->ID == can_id &&
-            entry->id_type == id_type && entry->context == context)
+            entry->id_type == id_type && entry->context == context &&
+            entry->mask == (id_type == CAN_ID_STANDARD ? 0x7FFU : 0x1FFFFFFFU))
         {
             memset(entry, 0, sizeof(*entry));
             break;
@@ -391,7 +405,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
         {
             if (Can_RxCallbacks[index].is_used != 0 &&
                 Can_RxCallbacks[index].hfdcan == hfdcan &&
-                Can_RxCallbacks[index].ID == rx_header.Identifier &&
+                Can_RxCallbacks[index].ID == (rx_header.Identifier & Can_RxCallbacks[index].mask) &&
                 Can_RxCallbacks[index].id_type == id_type)
             {
                 Can_RxCallbacks[index].func(hfdcan,
