@@ -133,6 +133,7 @@ public:
     volatile bool Write_Enable_Activated_Flag = false;
     // 忙标志（发出指令/收发数据后置1，StatusMatch回调中清零）
     volatile bool Busy_Flag = false;
+    volatile bool Auto_Polling_Pending = false;
     // 置忙时间戳（微秒）
     volatile uint64_t Busy_Timestamp = 0;
 
@@ -156,6 +157,7 @@ public:
             {
                 SEGGER_RTT_printf(0, "TIMEOUT! Instr=%02X\n", Current_Instruction);
                 Busy_Flag = false;
+                Auto_Polling_Pending = false;
                 Auto_Polling_Error_Count++;
                 return false;
             }
@@ -171,6 +173,7 @@ public:
             return true;
         }
         Busy_Flag = false;
+        Auto_Polling_Pending = false;
         Write_Enable_Activated_Flag = false;
         Suppress_AutoPolling = false;
         Auto_Polling_Error_Count++;
