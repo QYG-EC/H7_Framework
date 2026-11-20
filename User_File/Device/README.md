@@ -24,6 +24,7 @@ Application 使用 Device 接口，不直接解析 CAN/UART 或管理 DMA。
 | DJI 电机 | [dji_motor.h](Peripheral/Motor/DJImotor/dji_motor.h) | Chassis/Shoot 初始化电机与发送组；StatusTask 维护设备 ServiceAll |
 | 瓴控 LK 电机 | [lk_motor.h](Peripheral/Motor/LKmotor/lk_motor.h) | 单机/广播与本地 PID；StatusTask 维护安全服务，未绑定实际机构 |
 | VESC 电调 | [驱动指南](Peripheral/Motor/VESCmotor/README.md)、[vesc_motor.h](Peripheral/Motor/VESCmotor/vesc_motor.h) | 扩展帧逐路默认关闭；九种基本控制，StatusTask 维护安全输出，未绑定机构 |
+| 灵足时代电机 | [驱动指南](Peripheral/Motor/RobStride/README.md)、[robstride_motor.h](Peripheral/Motor/RobStride/robstride_motor.h) | EL05 / RS00～RS06 私有扩展帧五种控制模式与配置回读；StatusTask 维护安全服务，未绑定机构 |
 | S.BUS / WFLY / DJI 遥控 | [sbus.h](Peripheral/Remote/sbus.h)、[wfly.h](Peripheral/Remote/wfly.h)、[remote_control.h](Peripheral/Remote/remote_control.h) | Input 绑定 UART5 S.BUS；WFLY 底盘映射默认关闭 |
 | 裁判 / VTM / UI | [Referee 指南](Peripheral/Referee/README.md) | 启用 H7_APP_CLIENT_UI 时 System_Init 绑定 Referee；控制业务尚未接入 Shoot/Chassis |
 | EricTool | [dvc_erictool.h](Peripheral/EricTool/dvc_erictool.h) | UART/USB 调试与遥测 |
