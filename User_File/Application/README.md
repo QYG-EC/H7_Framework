@@ -200,6 +200,9 @@ Yaw 使用 INS 角度/速度串级闭环，通过达妙 MIT 纯转矩指令输�
 反馈由四个轮模块估算 `vx/vy/wz`，经过一阶平滑后每 10 ms 发布。`online` 只有八个
 电机均在线时为 true；`enabled` 表示八个电机均 ready，且当前命令不是 `ZERO_FORCE`。
 在线状态来源仍是 Device，而不是 Message Center。
+任一行走或舵向电机离线时，底盘请求两个发送组全部失能，驱动清零输出并清积分。
+全部反馈恢复且命令新鲜、非 ZERO_FORCE 后自动请求使能，待八台电机全部 ready 才重新计算
+运动目标；零电流请求不等于机械制动。具体恢复及调度边界见 [Chassis 安全说明](Chassis/README.md#安全掉线与反馈的实际边界)。
 
 ## 7. Shoot
 
